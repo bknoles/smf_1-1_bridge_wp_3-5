@@ -1,7 +1,7 @@
 smf_1-1_bridge_wp_3-5
 =====================
 
-Bridging the 1.1.x version of Simple Machines forum with Wordpress 3.5
+Bridging the 1.1.x version of Simple Machines forum with Wordpress 3.5.
 
 This wordpress plugin is based on the wp-smf-bridge plugin located on the [Wordpress plugin directory](http://wordpress.org/plugins/wp-smf-bridge/)
 
