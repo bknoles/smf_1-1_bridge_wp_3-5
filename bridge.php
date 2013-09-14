@@ -161,7 +161,8 @@ class smf_bridge {
 	if (!self::$bridge_active) return;
 	if (!$_POST['wp-submit'] || $_POST['wp-submit'] != 'Log In') return;
 	//if (!is_user_logged_in()) return;
-	$user = get_userdatabylogin($_POST['log']);
+	//$user = get_userdatabylogin($_POST['log']);
+    $user = get_user_by('login', $_POST['log']);
 	if ($user) {
 		self::crowbar();
 		self::syncprofile($user->ID,true);
@@ -191,7 +192,8 @@ class smf_bridge {
 						"user_login" => $_POST['log'],
 						"user_pass" => $_POST['pwd']
 					));
-					$tgt_user = get_userdatabylogin($_POST['log']);
+					//$tgt_user = get_userdatabylogin($_POST['log']);
+                    $tgt_user = get_user_by('login', $_POST['log']);
 					if ($tgt_user) wp_set_current_user($tgt_user->ID,$tgt_user->user_login);
                                 }
                         }
@@ -375,12 +377,13 @@ class smf_bridge {
 	if (!self::$bridge_active) return;
 	global $smf_user_info,$scheme,$auth_cookie_name;
 	if (smf_authenticateUser()) {
-		if ($tgt_user = get_userdatabylogin($smf_user_info['username']) == false) {
+		if ($tgt_user = get_user_by('login', $smf_user_info['username']) == false) {
 		    // The user does not exist in the WP database - let's sync and try again
 		    if (self::syncusers() > 0)
-			$tgt_user = get_userdatabylogin($smf_user_info['username']);
+			$tgt_user = get_user_by('login', $smf_user_info['username']);
 		}
-		if ($user->ID) {
+        
+		if ($tgt_user->ID) {
 			wp_set_current_user($tgt_user->ID,$tgt_user->user_login);
 			// And set a cookie just in case
 			$expiration = time() + 172800;
@@ -407,7 +410,7 @@ class smf_bridge {
      */
     function import_auth(&$user, &$pass) {
 	global $wpdb;
-	$wp_info = get_userdatabylogin($user);
+	$wp_info = get_user_by('login',$user);
 	if (!function_exists('smf_authenticate_password'))
 	    self::load();
 	if (md5($pass) == $wp_info->user_pass AND $wp_info) {
