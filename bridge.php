@@ -220,10 +220,11 @@ class smf_bridge {
     function register($userID) {	    
 	if (!self::$bridge_active) return;
 	global $user_login,$user_email,$password;
-	$user_status = ($smf_settings['registration_method'] == 2) ? 3 : 1;
+    $extra_fields = array();
+	$extra_fields['user_status'] = ($smf_settings['registration_method'] == 2) ? 3 : 1;
 	$user = get_userdata($userID);
 	if (!self::getSMFId($user->user_login))
-	    smf_registerMember($user->user_login, $user->user_email, $user->user_password, $user_status);
+	    smf_registerMember($user->user_login, $user->user_email, $user->user_password, $extra_fields['user_status']);
 	return true;
     }
 
@@ -269,11 +270,13 @@ class smf_bridge {
 	if (!self::$bridge_active) return;
 	$smf_cxn = mysql_connect(self::$smf_dbopts['host'],self::$smf_dbopts['user'],self::$smf_dbopts['pass']);
 	$SQL = "SELECT ID_MEMBER FROM ".self::$smf_dbopts['prefix']."members WHERE UPPER(memberName)=UPPER('$username') LIMIT 1";
-	if (!$rs = mysql_query($SQL,$smf_cxn)) {
+    $rs = mysql_query($SQL,$smf_cxn);
+	if (!$rs) {
 		trigger_error(mysql_error(),E_USER_WARNING);
 		return null;
 	} else {
-		return mysql_fetch_array($rs, MYSQL_ASSOC)->ID_MEMBER;
+        $result = mysql_fetch_array($rs, MYSQL_ASSOC);
+        return $result['ID_MEMBER'];
 	}	
     }
 
