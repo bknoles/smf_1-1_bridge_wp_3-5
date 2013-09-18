@@ -390,7 +390,7 @@ function smf_registerMember($username, $email, $password, $extra_fields = array(
 		'passwordSalt' => "'" . substr(md5(mt_rand()), 0, 4) . "'",
 		'posts' => '0',
 		'dateRegistered' => (string) time(),
-        'is_activated' => "'$extra_fields[is_activated]'",
+        'is_activated' => "'1'",
 		'personalText' => "'" . addslashes($smf_settings['default_personalText']) . "'",
 		'pm_email_notify' => '1',
 		'ID_THEME' => '0',
@@ -439,13 +439,13 @@ function smf_registerMember($username, $email, $password, $extra_fields = array(
 		VALUES ('latestMember', $ID_MEMBER),
 			('latestRealName', '$username')", __FILE__, __LINE__);
 	smf_query("
-		UPDATE {$db_prefix}log_activity
+		UPDATE $smf_settings[db_prefix]log_activity
 		SET registers = registers + 1
 		WHERE date = '" . strftime('%Y-%m-%d') . "'
 		LIMIT 1", __FILE__, __LINE__);
 	if (smf_affected_rows() == 0)
 		smf_query("
-			INSERT IGNORE INTO {$db_prefix}log_activity
+			INSERT IGNORE INTO $smf_settings[db_prefix]log_activity
 				(date, registers)
 			VALUES ('" . strftime('%Y-%m-%d') . "', 1)", __FILE__, __LINE__);
 

@@ -216,6 +216,7 @@ class smf_bridge {
     /* register
      * @public
      * Occurs when a user registers on WordPress - this registers them with SMF
+     * The new SMF user will not be able to login to smf using their WP password until they first login to WP and sync their pw via import_auth
      */
     function register($userID) {	    
 	if (!self::$bridge_active) return;
@@ -223,7 +224,9 @@ class smf_bridge {
     $extra_fields = array();
 	$extra_fields['user_status'] = ($smf_settings['registration_method'] == 2) ? 3 : 1;
 	$user = get_userdata($userID);
+    // Username is already checked for duplication in uservalid function, so this if is kind of unnecessary 
 	if (!self::getSMFId($user->user_login))
+    _log('made it here');
 	    smf_registerMember($user->user_login, $user->user_email, $user->user_password, $extra_fields['user_status']);
 	return true;
     }
@@ -390,7 +393,9 @@ class smf_bridge {
 	if (smf_authenticateUser()) {
 		if ($tgt_user = get_user_by('login', $smf_user_info['username']) == false) {
 		    // The user does not exist in the WP database - let's sync and try again
+            //smf_add_user_to_wp($smf_user_info['username']);
 			//if (self::syncusers() > 0)
+            _log('logged in smf user does not exist in wordpress');
 			$tgt_user = get_user_by('login', $smf_user_info['username']);
 		}
         
@@ -407,7 +412,7 @@ class smf_bridge {
 			setcookie($auth_cookie_name, $auth_cookie, $expiration, ADMIN_COOKIE_PATH, COOKIE_DOMAIN);
 			setcookie(LOGGED_IN_COOKIE, $cookie_data, $expiration, COOKIEPATH, COOKIE_DOMAIN);	
 			smf_logOnline('WordPress');
-			self::syncprofile($tgt_user->ID,true);
+			//self::syncprofile($tgt_user->ID,true);
 		}
 	} else {
 		self::login();
@@ -475,7 +480,7 @@ class smf_bridge {
 if (!function_exists('add_action')) exit;
 /* Associate the necessary action and filter hooks */
 add_action('admin_menu',array('smf_bridge','add_menu'));
-//add_action('user_register',array('smf_bridge','register')); // Takes 1 argument, userID
+add_action('user_register',array('smf_bridge','register')); // Takes 1 argument, userID
 add_action('profile_update',array('smf_bridge','syncprofile'));
 add_action('personal_options_update',array('smf_bridge','syncprofile'));
 add_action('plugins_loaded',array('smf_bridge','load'));
