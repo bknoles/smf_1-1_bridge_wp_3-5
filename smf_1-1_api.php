@@ -5,37 +5,23 @@
 * SMF: Simple Machines Forum                                                      *
 * Open-Source Project Inspired by Zef Hemel (zef@zefhemel.com)                    *
 * =============================================================================== *
-* Software Version:           SMF 1.1.11                                           *
+* Software Version:           SMF 1.1.6                                           *
 * Software by:                Simple Machines (http://www.simplemachines.org)     *
 * Copyright 2006 by:          Simple Machines LLC (http://www.simplemachines.org) *
 *           2001-2006 by:     Lewis Media (http://www.lewismedia.com)             *
 * Support, News, Updates at:  http://www.simplemachines.org                       *
 ***********************************************************************************
-* This file, and ONLY this file is released under the terms of the BSD License.   *
+* This program is free software; you may redistribute it and/or modify it under   *
+* the terms of the provided license as published by Simple Machines LLC.          *
 *                                                                                 *
-* Redistribution and use in source and binary forms, with or without              *
-* modification, are permitted provided that the following conditions are met:     *
+* This program is distributed in the hope that it is and will be useful, but      *
+* WITHOUT ANY WARRANTIES; without even any implied warranty of MERCHANTABILITY    *
+* or FITNESS FOR A PARTICULAR PURPOSE.                                            *
 *                                                                                 *
-* Redistributions of source code must retain the above copyright notice, this     *
-* list of conditions and the following disclaimer.                                *
-* Redistributions in binary form must reproduce the above copyright notice, this  *
-* list of conditions and the following disclaimer in the documentation and/or     *
-* other materials provided with the distribution.                                 *
-* Neither the name of Simple Machines LLC nor the names of its contributors may   *
-* be used to endorse or promote products derived from this software without       *
-* specific prior written permission.                                              *
-*                                                                                 *
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"     *
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE       *
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE      *
-* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE        *
-* LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR             *
-* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE *
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)     *
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT      *
-* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT   *
-* OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. *
+* See the "license.txt" file for details of the Simple Machines license.          *
+* The latest version can always be found at http://www.simplemachines.org.        *
 **********************************************************************************/
+
 
 // !!! Groups, Member data?  Pull specific fields?
 
@@ -156,7 +142,7 @@
 @set_magic_quotes_runtime(0);
 
 // Hopefully the forum is in the same place as this script.
-require_once(dirname(__FILE__) . '/Settings.php');
+//require_once(dirname(__FILE__) . '/Settings.php');
 
 global $smf_settings, $smf_user_info, $smf_connection;
 
@@ -434,7 +420,7 @@ function smf_registerMember($username, $email, $password, $extra_fields = array(
 		'passwordSalt' => "''",
 	);
 
-	$register_vars = $extra_fields + $register_vars;
+	//$register_vars = $extra_fields + $register_vars;
 
 	smf_query("
 		INSERT INTO $smf_settings[db_prefix]members
@@ -964,4 +950,251 @@ if (!function_exists('sha1'))
 	}
 }
 
+// Change Password - Added by Raymond
+function smf_ChangePassword($username, $password){
+
+	global $smf_connection, $smf_settings;	
+
+	// enable binary look up for MODx workaround - Raymond
+	$binaryLookup = '';
+	
+     $sql = "UPDATE $smf_settings[db_prefix]members 
+     	  SET passwd='".sha1(strtolower($username) . $password)."' 
+          WHERE $binaryLookup memberName = '".mysql_escape_string($username)."'";
+          
+     $request = smf_query($sql, __FILE__, __LINE__);
+     if($request) return true;
+}
+
+
+// Update user profil - Added by dmRy
+function smf_UpdateProfil($username, $realName, $emailAddress, $personalText, $websiteUrl, $AIM, $YIM) {
+	global $smf_connection, $smf_settings;	
+
+	// enable binary look up for MODx workaround - Raymond
+	$binaryLookup = '';
+	
+     $sql = "UPDATE $smf_settings[db_prefix]members 
+     	  SET realName='".addslashes($realName)."' , emailAddress='".addslashes($emailAddress)."' , personalText='".addslashes($personalText)."' , websiteTitle='".addslashes($websiteUrl)."' , websiteUrl='".addslashes($websiteUrl)."' , AIM='".addslashes($AIM)."' , YIM='".addslashes($YIM)."' 
+          WHERE $binaryLookup memberName = '".mysql_escape_string($username)."'";
+          
+     $request = smf_query($sql, __FILE__, __LINE__);
+     if($request) return true;
+}
+
+
+
+
+
+
+// Delete users - Added by dmRy
+function smf_deleteMembers($users) {
+	global $db_prefix, $smf_settingsphp_d, $modSettings, $ID_MEMBER, $smf_connection, $smf_settings;
+
+	$sourcedir = $smf_settings['sourcedir'];
+	$condition = '= ' . $users;
+	// Make these peoples' posts guest posts.
+	smf_query("
+		UPDATE $smf_settings[db_prefix]messages
+		SET ID_MEMBER = 0" . (!empty($modSettings['allow_hideEmail']) ? ", posterEmail = ''" : '') . "
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		UPDATE $smf_settings[db_prefix]polls
+		SET ID_MEMBER = 0
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	// Make these peoples' posts guest first posts and last posts.
+	smf_query("
+		UPDATE $smf_settings[db_prefix]topics
+		SET ID_MEMBER_STARTED = 0
+		WHERE ID_MEMBER_STARTED $condition", __FILE__, __LINE__);
+	smf_query("
+		UPDATE $smf_settings[db_prefix]topics
+		SET ID_MEMBER_UPDATED = 0
+		WHERE ID_MEMBER_UPDATED $condition", __FILE__, __LINE__);
+
+	smf_query("
+		UPDATE $smf_settings[db_prefix]log_actions
+		SET ID_MEMBER = 0
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	smf_query("
+		UPDATE $smf_settings[db_prefix]log_banned
+		SET ID_MEMBER = 0
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	smf_query("
+		UPDATE $smf_settings[db_prefix]log_errors
+		SET ID_MEMBER = 0
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	// Delete the member.
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]members
+		WHERE ID_MEMBER $condition
+		LIMIT " . count($users), __FILE__, __LINE__);
+
+	// Delete the logs...
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_boards
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_karma
+		WHERE ID_TARGET $condition
+			OR ID_EXECUTOR $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_mark_read
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_notify
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_online
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_polls
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]log_topics
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]collapsed_categories
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	
+
+	smf_query("
+		UPDATE $smf_settings[db_prefix]personal_messages
+		SET ID_MEMBER_FROM = 0
+		WHERE ID_MEMBER_FROM $condition", __FILE__, __LINE__);
+
+	// It's over, no more moderation for you.
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]moderators
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	// If you don't exist we can't ban you.
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]ban_items
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+	// Remove individual theme settings.
+	smf_query("
+		DELETE FROM $smf_settings[db_prefix]themes
+		WHERE ID_MEMBER $condition", __FILE__, __LINE__);
+
+
+////get new stats
+
+		$changes = array(
+			'memberlist_updated' => time(),
+		);
+
+			// Update the latest member (highest ID_MEMBER) and count.
+			$result = smf_query("
+				SELECT COUNT(*), MAX(ID_MEMBER)
+				FROM {$db_prefix}members", __FILE__, __LINE__);
+			list ($changes['totalMembers'], $changes['latestMember']) = mysql_fetch_row($result);
+			mysql_free_result($result);
+
+			// Get the latest member's display name.
+			$result = smf_query("
+				SELECT realName
+				FROM {$db_prefix}members
+				WHERE ID_MEMBER = " . (int) $changes['latestMember'] . "
+				LIMIT 1", __FILE__, __LINE__);
+			list ($changes['latestRealName']) = mysql_fetch_row($result);
+			mysql_free_result($result);
+////update stats
+
+		foreach ($changes as $variable => $value)
+		{
+			smf_query("
+				UPDATE {$db_prefix}settings
+				SET value = " . ($value === true ? 'value + 1' : ($value === false ? 'value - 1' : "'$value'")) . "
+				WHERE variable = '$variable'
+				LIMIT 1", __FILE__, __LINE__);
+			$modSettings[$variable] = $value === true ? $modSettings[$variable] + 1 : ($value === false ? $modSettings[$variable] - 1 : stripslashes($value));
+		}
+
+
+
+
+
+
+
+unset($users);
+}
+
+
+
+
+// Log in user by user name - Added by Raymond, originally created by ?
+function smf_LoginById($username, $cookieLength = 3600){
+
+	global $smf_connection, $smf_settings;	
+
+	// enable binary look up for MODx workaround - Raymond
+	$binaryLookup = '';
+
+     $sql = "SELECT *
+          FROM $smf_settings[db_prefix]members 
+          WHERE $binaryLookup memberName = '".mysql_escape_string($username)."'
+          LIMIT 1";
+     $request = smf_query($sql, __FILE__, __LINE__);
+     $smf_user = mysql_fetch_assoc($request);
+     
+    //Now login
+    smf_setLoginCookie($cookieLength, $smf_user['ID_MEMBER'], sha1($smf_user['passwd'] . $smf_user['passwordSalt']));
+    return smf_authenticateUser();
+}
+
+// Log out user - Added by Raymond
+function smf_LogoutById($username){
+
+	global $smf_connection, $smf_settings;	
+
+	// enable binary look up for MODx workaround - Raymond
+	$binaryLookup = '';
+
+	// shouldn't have to do this but it works!!
+	$sql = "SELECT *
+	  FROM $smf_settings[db_prefix]members 
+	  WHERE $binaryLookup memberName = '".mysql_escape_string($username)."'
+	  LIMIT 1";
+	$request = smf_query($sql, __FILE__, __LINE__);
+	$smf_user = mysql_fetch_assoc($request);
+	smf_query("DELETE FROM $smf_settings[db_prefix]log_online WHERE ID_MEMBER = '".$smf_user['ID_MEMBER']."' LIMIT 1", __FILE__, __LINE__);
+
+    unset($_SESSION['login_' . $smf_settings['cookiename']]);
+
+
+$PHPSESSID = $HTTP_COOKIE_VARS["PHPSESSID"];
+$parsed_url = smf_cookie_url(!empty($smf_settings['localCookies']), !empty($smf_settings['globalCookies']));
+setcookie("PHPSESSID", $PHPSESSID, time() - 3600, $parsed_url['path'] . '/', $parsed_url['host'], 0);
+    smf_setLoginCookie(-3600, $smf_user['ID_MEMBER']);
+    smf_setLoginCookie(-3600, 0);
+
+}
+
+function smf_authenticate_password($username,$password){
+	global $smf_connection, $smf_settings;	
+
+	// enable binary look up for MODx workaround - Raymond
+	$binaryLookup = '';
+
+     $sql = "SELECT *  
+     		 FROM $smf_settings[db_prefix]members 
+	         WHERE $binaryLookup memberName = '".mysql_escape_string($username)."'";
+     $request = smf_query($sql, __FILE__, __LINE__);
+     if($request) {
+		$smf_user = mysql_fetch_assoc($request);
+
+                        if ((sha1(sha1(strtolower($username) . $password) . $smf_user['passwordSalt'])) == (sha1($smf_user['passwd'] . $smf_user['passwordSalt'])))		
+	                return true;
+                 } 
+			return false;
+}
+
+define('SMF_API',true);
 ?>
