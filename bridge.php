@@ -158,59 +158,25 @@ class smf_bridge {
      * @public
      * Occurs when a user logs in to WordPress, crowbars them in to SMF and syncs profiles for sanity
      */
-    function login() {    
+    function loginWpUserToSmf($user_login, $user) {    
 	if (!self::$bridge_active) return;
-	if (!$_POST['wp-submit'] || $_POST['wp-submit'] != 'Log In') return;
-	//if (!is_user_logged_in()) return;
-	//$user = get_userdatabylogin($_POST['log']);
-    $user = get_user_by('login', $_POST['log']);
-	if ($user) {
-		self::crowbar();
-		self::syncprofile($user->ID,true);
-	} else {
-		// update wordpress password if we exist
-		if (!$smf_cxn)
-            global $wpdb;
-                    $smf_cxn = mysql_connect(self::$smf_dbopts['host'],self::$smf_dbopts['user'],self::$smf_dbopts['pass']) or trigger_error(mysql_error(),E_USER_ERROR);
-                $user_exists = $wpdb->get_row("SELECT id FROM $wpdb->users WHERE UPPER(user_login) = UPPER('". $_POST['log'] . "')");		
-		if ($user_exists) {
-			$SQL = "SELECT passwd, passwordSalt FROM ".self::$smf_dbopts['prefix']."members WHERE UPPER(memberName) = UPPER('".$_POST['log']."')";
-			if (!$rs = mysql_query($SQL,$smf_cxn)) trigger_error(mysql_error(),E_USER_ERROR);
-			if (mysql_num_rows($rs) > 0) {
-				list($password,$salt) = mysql_fetch_array($rs, MYSQL_NUM);
-				if (sha1($_POST['pwd'].$sald) == $password) {
-					$newpass = wp_hash_password($_POST['pwd']);
-					$SQL = "UPDATE ".$wpdb->prefix."users SET user_pass='$newpass' WHERE UPPER(user_login)=UPPER('".$_POST['log']."') LIMIT 1";
-				}
-			}
-		} else {
-			//self::syncusers();
-			$SQL = "SELECT passwd, passwordSalt FROM ".self::$smf_dbopts['prefix']."members WHERE UPPER(memberName) = UPPER('".$_POST['log']."')";
-                        if (!$rs = mysql_query($SQL,$smf_cxn)) trigger_error(mysql_error(),E_USER_ERROR);
-                        if (mysql_num_rows($rs) > 0) {
-                                list($password,$salt) = mysql_fetch_array($rs, MYSQL_NUM);
-                                if (sha1($_POST['pwd'].$sald) == $password) {
-					wp_update_user(array(
-						"user_login" => $_POST['log'],
-						"user_pass" => $_POST['pwd']
-					));
-					//$tgt_user = get_userdatabylogin($_POST['log']);
-                    $tgt_user = get_user_by('login', $_POST['log']);
-					if ($tgt_user) wp_set_current_user($tgt_user->ID,$tgt_user->user_login);
-                                }
-                        }
-		}
-	}
+    if ($user->ID != 0) {
+		self::crowbar($user);
+		//self::syncprofile($user->ID,true);
+	} 
     }
 
     /* logout
      * @public
      * Occurs when a use logs out of WordPress, logs them out of SMF, too!
      */
-    function logout() {
+    function logoutCurrentSmfUser() {
 	if (!self::$bridge_active) return;
-	smf_sessionClose();
-	smf_setLoginCookie(0,$user->user_login,'',true);	
+    global $smf_user_info;
+    if (smf_authenticateUser()) {
+        smf_sessionClose();
+        smf_setLoginCookie(0,$smf_user_info['username'],'',true);	
+    }
     }
 
     /* register
@@ -226,7 +192,6 @@ class smf_bridge {
 	$user = get_userdata($userID);
     // Username is already checked for duplication in uservalid function, so this if is kind of unnecessary 
 	if (!self::getSMFId($user->user_login))
-    _log('made it here');
 	    smf_registerMember($user->user_login, $user->user_email, $user->user_password, $extra_fields['user_status']);
 	return true;
     }
@@ -287,10 +252,9 @@ class smf_bridge {
      * @private
      * Performs the login 'crowbar' into SMF
      */
-    private function crowbar() {	    
+    private function crowbar($user) {	    
 	if (!self::$bridge_active) return;
-	if (!is_user_logged_in()) return;
-	$user = wp_get_current_user();
+    if (empty($user) || $user->ID == 0) return;
 	// Fetch the password and salt so we can pass the encrypted guy to the
 	// cookie setting function...
 	$smf_cxn = mysql_connect(self::$smf_dbopts['host'],self::$smf_dbopts['user'],self::$smf_dbopts['pass']);
@@ -305,8 +269,10 @@ class smf_bridge {
 		//self::crowbar();
 	    return;
 	}
-	smf_setLoginCookie(21600,$user->user_login,passwd,true);
-	smf_authenticateUser();	
+    if (!empty($passwd)) {
+        smf_setLoginCookie(21600,$user->user_login,$passwd,true);
+        smf_authenticateUser();	
+    }
     }
 
     /* syncusers
@@ -345,6 +311,8 @@ class smf_bridge {
 		++$sync_count;
 	    }
 	}
+	smf_sessionClose();
+	smf_setLoginCookie(0,$user->user_login,'',true);	
 	foreach ($smf_users as $usr) {
 	    if (!in_array($usr,$wp_users)) {
 		// Sync this user to WP!
@@ -382,41 +350,31 @@ class smf_bridge {
 	return $sync_count;
     }
 
-    /* checklogin
+    /* checkLoggedInUsers
      * @public
-     * Checks if a user is logged into SMF, and if they are, attempts to log them in to
+     * Checks to make sure that if a WP user is logged in, that same user is logged into SMF
      * WordPress as well
      */
-    function checklogin() {
+    function checkLoggedInUsers() {
 	if (!self::$bridge_active) return;
 	global $smf_user_info,$scheme,$auth_cookie_name;
-	if (smf_authenticateUser()) {
-		if ($tgt_user = get_user_by('login', $smf_user_info['username']) == false) {
-		    // The user does not exist in the WP database - let's sync and try again
-            //smf_add_user_to_wp($smf_user_info['username']);
-			//if (self::syncusers() > 0)
-            _log('logged in smf user does not exist in wordpress');
-			$tgt_user = get_user_by('login', $smf_user_info['username']);
-		}
-        
-		if ($tgt_user->ID) {
-			wp_set_current_user($tgt_user->ID,$tgt_user->user_login);
-			// And set a cookie just in case
-			$expiration = time() + 172800;
-			$cookie_data = $tgt_user->user_login . '|' . $expiration;
-			$key = wp_hash($tgt_user->user_login . '|' . $expiration,'logged_in');
-			$cookie_data .= hash_hmac('md5',$tgt_user->user_login . '|' . $expiration,$key);
-			$auth_cookie = wp_generate_auth_cookie($tgt_user->ID, $expiration);
-			$logged_in_cookie = wp_generate_auth_cookie($tgt_user->ID, $expiration, 'logged_in');
-			setcookie($auth_cookie_name, $auth_cookie, $expiration, PLUGINS_COOKIE_PATH, COOKIE_DOMAIN);
-			setcookie($auth_cookie_name, $auth_cookie, $expiration, ADMIN_COOKIE_PATH, COOKIE_DOMAIN);
-			setcookie(LOGGED_IN_COOKIE, $cookie_data, $expiration, COOKIEPATH, COOKIE_DOMAIN);	
-			smf_logOnline('WordPress');
-			//self::syncprofile($tgt_user->ID,true);
-		}
-	} else {
-		self::login();
-	}
+
+    if (smf_authenticateUser()) {
+
+        $wp_current_user = wp_get_current_user();
+
+        // If we have a WP user AND an smf user, but they don't match, log out the SMF user and log in the user that corresponds to the WP user
+        if ( $wp_current_user->ID != 0 && strtolower($wp_current_user->user_login) !== strtolower($smf_user_info['username']) ) {
+
+            // Log out our current smf user
+            self::logoutCurrentSmfUser();	
+
+            self::loginWpUserToSmf($wp_current_user->user_login, $wp_current_user);
+
+        }
+
+    }
+	
     }
 
     /* import_auth
@@ -437,12 +395,10 @@ class smf_bridge {
             }
             return $wp_user;
         } elseif (smf_authenticate_password($username,$password) AND $wp_user) {
-            _log('password authenticated with SMF');
             // Sync the password into WordPress
             wp_set_password($password, $wp_user->ID);
             return $wp_user;
         } elseif (smf_authenticate_password($username,$password)) {
-            _log('authenticated with SMF but didn\'t find in wp');
             // This user must not be in WP, let's sync users up and try again
             //if (self::syncusers() == 0) return;
             //self::import_auth($username,$password);
@@ -484,7 +440,9 @@ add_action('user_register',array('smf_bridge','register')); // Takes 1 argument,
 add_action('profile_update',array('smf_bridge','syncprofile'));
 add_action('personal_options_update',array('smf_bridge','syncprofile'));
 add_action('plugins_loaded',array('smf_bridge','load'));
-//add_action('set_current_user',array('smf_bridge','checklogin'));
+add_action('set_current_user',array('smf_bridge','checkLoggedInUsers'));
 add_filter('authenticate',array('smf_bridge','import_auth'),40,3);
 add_filter('validate_username',array('smf_bridge','uservalid'),10,2);
+add_action('wp_login',array('smf_bridge', 'loginWpUserToSmf'),10,2);
+add_action('wp_logout',array('smf_bridge', 'logoutCurrentSmfUser'));
 ?>

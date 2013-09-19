@@ -232,6 +232,7 @@ function smf_setLoginCookie($cookie_length, $id, $password = '', $encrypted = tr
 
 	function smf_cookie_url($local, $global)
 	{
+        global $smf_settings;
 		// Use PHP to parse the URL, hopefully it does its job.
 		$parsed_url = parse_url($smf_settings['forum_url']);
 
