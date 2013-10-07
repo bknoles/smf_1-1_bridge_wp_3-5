@@ -118,16 +118,16 @@ class smf_bridge {
 	if ((get_option('smf_bridge_smfdir')) && (!file_exists(ABSPATH.get_option('smf_bridge_smfdir').'Settings.php')))
 	    echo '<div id="message" class="updated fade">Your SMF path is invalid - could not locate Settings.php in <em>'.ABSPATH.get_option('smf_bridge_smfdir').'</em></div>';
 ?>
-    <form action="<?=$_SERVER['REQUEST_URI']?>" method="POST">
+    <form action="<?php echo $_SERVER['REQUEST_URI']?>" method="POST">
 	<input type="hidden" name="action" value="save"/>
 	<table width="100%" cellspacing="2" cellpadding="5" class="editform">
 	<tr>
 	    <th width="33%" scope="row" valign="top">Forum Path:<br />
 		<font style="font-size: 8px;"><em>URI relative to Wordpress root<br />
-		 i.e - "forum/" places your forums in <?=ABSPATH?>forum/</em></font>
+		 i.e - "forum/" places your forums in <?php echo ABSPATH?>forum/</em></font>
 	    </th>
 	    <td>
-	    <input type="text" name="smf_relpath" value="<?=(get_option('smf_bridge_smfdir')) ? get_option('smf_bridge_smfdir') : ''?>" maxlength="256" style="width: 250px;"/>
+	    <input type="text" name="smf_relpath" value="<?php echo (get_option('smf_bridge_smfdir')) ? get_option('smf_bridge_smfdir') : ''?>" maxlength="256" style="width: 250px;"/>
 	    </td>
 	</tr>
 	<tr><td colspan="2" style="height: 18px;"></td></tr>
@@ -144,14 +144,14 @@ class smf_bridge {
 	<tr>
 	    <th width="33%" valign="top" scope="row">Manual User Sync:</th>
 	    <td>
-		<form action="<?=$_SERVER['REQUEST_URI']?>" method="POST">
+		<form action="<?php echo $_SERVER['REQUEST_URI']?>" method="POST">
 		    <input type="hidden" name="action" value="user-sync"/>
 		    <input type="submit" value="Synchronize Users"/>
 		</form>
 	    </td>
 	<tr>
     </table>
-<?	
+<?php
     }
 
     /* login
