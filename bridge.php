@@ -74,7 +74,7 @@ class smf_bridge {
      * Add the admin menu link
      */
     function add_menu() {
-	add_submenu_page('options-general.php','SMF Bridge Settings','SMF Bridge',8,__FILE__,array('smf_bridge','settings'));
+	add_submenu_page('options-general.php','SMF Bridge Settings','SMF Bridge','manage_options',__FILE__,array('smf_bridge','settings'));
     }
 
     /* settings
@@ -211,7 +211,7 @@ class smf_bridge {
 	}
 	// We obviously only want to force outbound (to SMF) sync if we're POST'ing
 	if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-            if (!$smf_cxn)
+            if (!isset($smf_cxn))
                     $smf_cxn = mysql_connect(self::$smf_dbopts['host'],self::$smf_dbopts['user'],self::$smf_dbopts['pass']) or trigger_error(mysql_error(),E_USER_ERROR);
 	    $pass = $_POST['pass1'];
 		$SQL = "SELECT passwd, passwordSalt FROM ".self::$smf_dbopts['prefix']."members WHERE UPPER(memberName) = UPPER('".$user->user_login."')";
@@ -221,7 +221,6 @@ class smf_bridge {
 		    $pass = sha1($_POST['pass1'] . $salt);
 		}
 	    $SQL = "UPDATE ".self::$smf_dbopts['prefix']."members SET websiteUrl='".addslashes($_POST['url'])."',
-		AIM='".addslashes($_POST['aim'])."', YIM='".addslashes($_POST['yim'])."',
 		passwd='".$pass."',emailAddress='".addslashes($_POST['email'])."', realName='".
 		addslashes($_POST['first_name'].' '.$_POST['last_name'])."',
 		signature='".addslashes($_POST['description'])."'
