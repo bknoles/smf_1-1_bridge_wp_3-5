@@ -188,7 +188,7 @@ class smf_bridge {
 	if (!self::$bridge_active) return;
 	global $user_login,$user_email,$password;
     $extra_fields = array();
-	$extra_fields['user_status'] = ($smf_settings['registration_method'] == 2) ? 3 : 1;
+	$extra_fields['user_status'] = (self::$smf_settings['registration_method'] == 2) ? 3 : 1;
 	$user = get_userdata($userID);
     // Username is already checked for duplication in uservalid function, so this if is kind of unnecessary 
 	if (!self::getSMFId($user->user_login))
@@ -439,18 +439,28 @@ class smf_bridge {
         $new_user = get_userdata($user_id);
         return $new_user;    
     }
+
+    function deleteWpUserFromSmf($user_id) {
+        $user = get_userdata($user_id);
+        $smf_id = self::getSMFId($user->user_login);
+        if ($smf_id) smf_deleteMembers($smf_id);
+        else return false;
+
+        return true; 
+    }
 }
 
 if (!function_exists('add_action')) exit;
 /* Associate the necessary action and filter hooks */
 add_action('admin_menu',array('smf_bridge','add_menu'));
 add_action('user_register',array('smf_bridge','register')); // Takes 1 argument, userID
-add_action('profile_update',array('smf_bridge','syncprofile'));
-add_action('personal_options_update',array('smf_bridge','syncprofile'));
+//add_action('profile_update',array('smf_bridge','syncprofile'));
+//add_action('personal_options_update',array('smf_bridge','syncprofile'));
 add_action('plugins_loaded',array('smf_bridge','load'));
 add_action('set_current_user',array('smf_bridge','checkLoggedInUsers'));
 add_filter('authenticate',array('smf_bridge','import_auth'),40,3);
 add_filter('validate_username',array('smf_bridge','uservalid'),10,2);
 add_action('wp_login',array('smf_bridge', 'loginWpUserToSmf'),10,2);
 add_action('wp_logout',array('smf_bridge', 'logoutCurrentSmfUser'));
+add_action('delete_user', array('smf_bridge', 'deleteWpUserFromSmf') );
 ?>
